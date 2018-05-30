@@ -63,12 +63,14 @@
 
     loadLeaflet = function() {
       var blocksPromise = $.getJSON("https://cdn.rawgit.com/prusswan/SBF2018May/9532b0f9/public/blocks_all.geojson");
-      var stopsPromise = $.getJSON("https://cdn.rawgit.com/prusswan/SBF2018May/44236bfe/public/busstops_all.geojson");
-      // var stopsPromise = $.getJSON('/busstops_all.geojson');
+      // var stopsPromise = $.getJSON("https://cdn.rawgit.com/prusswan/SBF2018May/44236bfe/public/busstops_all.geojson");
+      var stopsPromise = $.getJSON('/busstops_all.geojson');
+      var pathsPromise = $.getJSON('/busservices_all.geojson');
 
-      $.when(blocksPromise, stopsPromise).then(function(data, data2) {
+      $.when(blocksPromise, stopsPromise, pathsPromise).then(function(data, data2, data3) {
         window.blocksData = data;
         window.stopsData = data2;
+        window.pathsData = data3;
         loadScript(urls[0], recursiveCallback);
       }).fail(function(jqxhr, textStatus, errorThrown) {
         console.log(errorThrown);
@@ -113,10 +115,10 @@
           layer.bindPopup(popup);
 
           layer.on('mouseover', function (e) {
-              this.openPopup();
+            this.openPopup();
           });
           layer.on('mouseout', function (e) {
-              this.closePopup();
+            this.closePopup();
           });
 
           layer.on('click', function() {
@@ -134,6 +136,13 @@
         iconSize: [20, 29]
       });
 
+      var busPaths;
+      var activeRoutes;
+
+      function pathFilter(feature, layer) {
+        if (activeRoutes.indexOf(feature.id) >= 0) return true
+      }
+
       var busLayer = L.geoJson(window.stopsData, {
         pointToLayer: function(feature, latlng) {
           return new L.marker(latlng, {
@@ -141,10 +150,20 @@
           });
         },
         onEachFeature: function(feature, layer) {
+          var services = feature.properties.BusServices;
           var popup = feature.id + ': ' + feature.properties.Description + '<br>' +
-            feature.properties.BusServices.toString();
-
+            services.toString();
           layer.bindPopup(popup);
+
+          layer.on('mouseover', function (e) {
+            activeRoutes = feature.properties.BusRoutes;
+            busPaths = L.geoJson(window.pathsData, {filter: pathFilter}).addTo(newMap);
+            this.openPopup();
+          });
+          layer.on('mouseout', function (e) {
+            newMap.removeLayer(busPaths);
+            this.closePopup();
+          });
         }
       });
       var busMarkers = L.markerClusterGroup({
@@ -160,7 +179,8 @@
         else {
           newMap.addLayer(busMarkers);
         }
-      })
+      });
+
 
       window.map = newMap;
       // $('#mapdiv').height('350px');
