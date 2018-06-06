@@ -26,7 +26,8 @@
 
     var urls = [
       'https://unpkg.com/leaflet@1.3.1/dist/leaflet.js',
-      "https://unpkg.com/leaflet.markercluster@1.0.4/dist/leaflet.markercluster.js"
+      "https://unpkg.com/leaflet.markercluster@1.0.4/dist/leaflet.markercluster.js",
+      "https://unpkg.com/geojson-path-finder@1.5.1/index.js"
     ];
 
     function loadScript( url, callback ) {
@@ -61,21 +62,73 @@
       }
     }
 
+    /**
+     * Load multiple json files, with progress.
+     *
+     * Example usage:
+     *
+     * jQuery.getMultipleJSON('file1.json', 'file2.json')
+     *   .progress(function(percent, count, total){})
+     *   .fail(function(jqxhr, textStatus, error){})
+     *   .done(function(file1, file2){})
+     * ;
+     */
+    jQuery.getMultipleJSON = function(){
+      var
+        num = 0,
+        def = jQuery.Deferred(),
+        map = jQuery.map(arguments, function(jsonfile){
+          return jQuery.getJSON(jsonfile).then(function(){
+            def.notify(1/map.length * ++num, num, map.length);
+            return arguments;
+          });
+        })
+      ;
+      jQuery.when.apply(jQuery, map)
+        .fail(function(){ def.rejectWith(def, arguments); })
+        .done(function(){
+          def.resolveWith(def, jQuery.map(arguments, function(response){
+            return response[0];
+          }));
+        })
+      ;
+      return def;
+    };
+
+    var pathFinder;
+
     loadLeaflet = function() {
-      var blocksPromise = $.getJSON("https://cdn.rawgit.com/prusswan/SBF2018May/9532b0f9/public/blocks_all.geojson");
+      var json_list = ["https://cdn.rawgit.com/prusswan/SBF2018May/9532b0f9/public/blocks_all.geojson",
+        '/busstops_all.geojson', '/busservices_all.geojson',
+        '/RoadSectionLine.geojson'];
       // var stopsPromise = $.getJSON("https://cdn.rawgit.com/prusswan/SBF2018May/44236bfe/public/busstops_all.geojson");
-      var stopsPromise = $.getJSON('/busstops_all.geojson');
-      var pathsPromise = $.getJSON('/busservices_all.geojson');
+      // var stopsPromise = $.getJSON('/busstops_all.geojson');
+      // var pathsPromise = $.getJSON('/busservices_all.geojson');
 
-      $.when(blocksPromise, stopsPromise, pathsPromise).then(function(data, data2, data3) {
-        window.blocksData = data;
-        window.stopsData = data2;
-        window.pathsData = data3;
-        loadScript(urls[0], recursiveCallback);
-      }).fail(function(jqxhr, textStatus, errorThrown) {
-        console.log(errorThrown);
-      });
+      // $.when(blocksPromise, stopsPromise, pathsPromise).then(function(data, data2, data3) {
+      //   window.blocksData = data;
+      //   window.stopsData = data2;
+      //   window.pathsData = data3;
+      //   loadScript(urls[0], recursiveCallback);
+      // }).fail(function(jqxhr, textStatus, errorThrown) {
+      //   console.log(errorThrown);
+      // });
 
+      jQuery.getMultipleJSON(...json_list)
+        .progress(function(percent, count, total) {
+
+        })
+        .fail(function(jqxhr, textStatus, errorThrown) {
+          console.log(errorThrown);
+        })
+        .done(function(data, data2, data3, data4) {
+          window.blocksData = data;
+          window.stopsData = data2;
+          window.pathsData = data3;
+          window.networkData = data4;
+
+          // pathFinder = new PathFinder(window.networkData);
+        });
 
     };
 
@@ -157,7 +210,9 @@
 
           layer.on('mouseover', function (e) {
             activeRoutes = feature.properties.BusRoutes;
-            busPaths = L.geoJson(window.pathsData, {filter: pathFilter}).addTo(newMap);
+            // busPaths = L.geoJson(window.pathsData, {filter: pathFilter}).addTo(newMap);
+            busPaths = L.geoJson(window.pathsData, {filter: pathFilter});
+            window.busPaths = busPaths;
             this.openPopup();
           });
           layer.on('mouseout', function (e) {
