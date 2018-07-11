@@ -9,18 +9,14 @@
 
 console.log('Hello World from Webpacker');
 
+if (!("pathFinder" in window)) {
+  console.log("pathfinder");
 
-//(() => {
-  const distance = require('@turf/distance');
-  // const explode = require('@turf/explode');
-  import explode from '@turf/explode';
+  window.PathFinder = require('geojson-path-finder');
+  window.roadLines = require('RoadSectionLine.geojson');
+  window.pathFinder = new PathFinder(roadLines, {precision: 1e-3});
 
-  if (!("pathFinder" in window)) {
-    console.log("pathfinder");
 
-    var PathFinder = require('geojson-path-finder');
-    var geojson = require('RoadSectionLine.geojson');
-    console.log(explode);
-    window.pathFinder = new PathFinder(geojson);
-  }
-//})()
+  // test:
+  // pathFinder.findPath({geometry:{coordinates:[103.874, 1.348]}},{geometry:{coordinates:[103.873, 1.349]}})
+}
